@@ -1,222 +1,222 @@
 ---
 name: dingtalk-doc-enterprise
-description: 钉钉文档企业版（多用户支持）。通过钉钉企业 API 管理文档，自动从钉钉连接器获取当前用户身份。支持读取、创建、编辑、删除文档。Design by Ash。
-requires:
-  bins:
-    - node  # 需要 Node.js 运行环境
-env:
-  read:
-    - "DINGTALK_CLIENTID (必需，钉钉应用 ClientId，从 ~/.openclaw/.env 加载)"
-    - "DINGTALK_CLIENTSECRET (必需，钉钉应用 ClientSecret，从 ~/.openclaw/.env 加载)"
-    - "DINGTALK_OPERATOR_ID (可选，操作人 unionId，不设置则自动获取)"
-    - "OPENCLAW_SENDER_ID (可选，由 OpenClaw 自动注入)"
-    - "OPENCLAW_SENDER_NAME (可选，由 OpenClaw 自动注入)"
+description: 钉钉文档操作技能。触发：钉钉文档链接 (alidocs.dingtalk.com)、关键词（总结/读取/更新/删除文档）、或文档操作请求。支持 read/blocks/update/append-text/delete 命令。
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "📄",
+        "requires":
+          {
+            "bins": ["node"],
+            "env": ["DINGTALK_CLIENTID", "DINGTALK_CLIENTSECRET"],
+          },
+      },
+  }
 ---
 
-# 钉钉文档企业版技能 (dingtalk-doc-enterprise)
+# 钉钉文档企业版
 
-## 功能描述
+使用同目录脚本 `doc-enterprise.js` 调用钉钉文档企业 API。OpenClaw 不会因为目录里存在 `.js` 文件就自动执行它；当任务命中本 skill 时，应按下面规则主动调用脚本。
 
-通过钉钉开放平台企业 API 管理钉钉文档，**支持多用户场景**，自动从钉钉连接器消息中获取当前用户身份。
+## 何时使用
 
-**核心特性：**
-- ✅ 自动获取当前用户身份（从钉钉连接器）
-- ✅ 支持企业内所有用户使用
-- ✅ 完整的增删改查功能
-- ✅ 权限隔离（每个用户只能操作自己有权限的文档）
+### 🔑 触发关键词
 
-## 触发场景
+当消息包含以下**任一关键词**时，优先使用本 skill：
 
-### 自动触发（推荐）
-- **用户发送钉钉文档链接** → 自动读取
-  ```
-  https://alidocs.dingtalk.com/i/nodes/xxx
-  ```
+| 类别 | 关键词 |
+|------|--------|
+| **平台名** | 钉钉文档、钉钉知识库、alidocs |
+| **读取类** | 总结、读取、查看、浏览、列出结构 |
+| **修改类** | 更新、修改、追加、删除、覆写 |
+| **对象** | 文档、链接、这篇、这个文档 |
 
-- **用户发送文档链接 + 操作指令** → 自动执行
-  ```
-  帮我读取这篇文档：https://alidocs.dingtalk.com/i/nodes/xxx
-  在这篇文档里添加一段：https://alidocs.dingtalk.com/i/nodes/xxx
-  ```
+**组合示例：**
+- "总结一下这篇钉钉文档"
+- "读取这个 alidocs 链接"
+- "更新文档内容"
+- "删除第三段"
 
-### 指令触发
-| 操作 | 指令示例 |
-|------|---------|
-| 读取文档 | `读取钉钉文档 <链接>` |
-| 创建文档 | `创建钉钉文档 <标题> [内容]` |
-| 更新文档 | `更新文档 <链接> 内容为...` |
-| 追加内容 | `在文档末尾追加：<链接> 内容...` |
-| 删除块元素 | `删除文档第 X 段：<链接>` |
-| 查询结构 | `列出文档结构：<链接>` |
+### ✅ 触发场景（优先级从高到低）
 
-## 配置
+| 场景 | 示例 | 动作 |
+|------|------|------|
+| **钉钉文档链接** | `alidocs.dingtalk.com/i/nodes/xxx` | 自动识别，调用 `read` 或 `blocks` |
+| **关键词 + 链接** | "总结 https://alidocs.dingtalk.com/..." | 根据意图选择命令 |
+| **明确命令** | "总结这篇文档"、"读取这个链接" | 根据意图选择命令 |
+| **文档操作** | "更新文档"、"追加内容"、"删除某段" | 调用对应命令 |
+| **结构查询** | "列出结构"、"有哪些章节" | 调用 `blocks` |
 
-### 环境变量
+### ❌ 不触发的场景
 
-**配置方式：** 在 `~/.openclaw/.env` 文件中添加（OpenClaw 会自动加载）
+- 创建新文档（脚本未实现 `create`）
+- 没有文档链接却要求修改文档
+- 没有 `blockId` 却要求追加/删除特定块
+
+---
+
+## 🔑 链接识别规则
+
+支持以下格式的钉钉文档链接：
+
+```
+https://alidocs.dingtalk.com/i/nodes/<docKey>
+https://alidocs.dingtalk.com/i/nodes/<docKey>?utm_scene=person_space
+https://alidocs.dingtalk.com/i/nodes/<docKey>?utm_scene=team_space
+alidocs.dingtalk.com/i/nodes/<docKey>  （无 https）
+```
+
+脚本会自动提取 `<docKey>` 部分。
+
+## 运行前提
+
+必需环境变量：
+
+- `DINGTALK_CLIENTID`
+- `DINGTALK_CLIENTSECRET`
+
+可选环境变量：
+
+- `DINGTALK_OPERATOR_ID`：默认操作人 unionId
+- `OPENCLAW_SENDER_ID`：由 OpenClaw/连接器注入，用于自动识别当前发送者
+- `OPENCLAW_SENDER_NAME`
+
+脚本优先使用 `DINGTALK_OPERATOR_ID`。若未设置，则尝试使用 `OPENCLAW_SENDER_ID` 查询 unionId。
+
+## 执行入口
+
+脚本文件：`doc-enterprise.js`
+
+执行时使用绝对路径，形式如下：
 
 ```bash
-# ~/.openclaw/.env
-DINGTALK_CLIENTID=dingxxxxxx
-DINGTALK_CLIENTSECRET=your_secret
+node /absolute/path/to/doc-enterprise.js <command> [args]
 ```
 
-| 变量 | 说明 | 必需 | 获取方式 |
-|------|------|------|---------|
-| `DINGTALK_CLIENTID` | 企业内部应用 ClientId | ✅ | 钉钉开放平台 → 应用详情 |
-| `DINGTALK_CLIENTSECRET` | 企业内部应用 ClientSecret | ✅ | 钉钉开放平台 → 应用详情 |
+当本 skill 引用了相对路径文件时，将其相对于 `SKILL.md` 所在目录解析成绝对路径后再执行。
 
-**注意：** 不需要在技能代码中直接读取 `.env` 文件，OpenClaw 会在启动时自动加载 `~/.openclaw/.env` 到环境变量。
+## 命令映射
 
-### OpenClaw 集成
+### 1. 读取文档概览
 
-在 OpenClaw 钉钉连接器场景下，**无需手动配置 operatorId**，系统会自动从消息元数据中提取发送者信息。
+适用：
 
-**自动注入的环境变量：**
-- `OPENCLAW_SENDER_ID` - 发送者 ID（由 OpenClaw 注入）
-- `OPENCLAW_SENDER_NAME` - 发送者名称（由 OpenClaw 注入）
+- 用户只说“读取这篇文档”
+- 用户贴了一个文档链接，想先快速看内容概况
 
-### 权限要求
+执行：
 
-| 权限码 | 用途 | 申请方式 |
-|--------|------|---------|
-| `Storage.File.Read` | 读取文档 | 开放平台 → 权限管理 |
-| `Storage.File.Write` | 编辑文档 | 开放平台 → 权限管理 |
-| `qyapi_get_member` | 获取用户信息（可选） | 开放平台 → 权限管理 |
-
-### 配置示例（Gateway 环境）
-
-在 OpenClaw Gateway 配置中添加：
-
-```powershell
-$env:DINGTALK_CLIENTID="dingaixxxxxxxxxxxxxx"
-$env:DINGTALK_CLIENTSECRET="9qe2buxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```bash
+node /absolute/path/to/doc-enterprise.js read <docKey-or-url>
 ```
 
-## 使用示例
+说明：
 
-### 读取文档
-```
-读取这篇文档：https://alidocs.dingtalk.com/i/nodes/amweZ92Pxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+- `read` 只输出块列表和部分预览文本
+- 适合快速探测，不适合直接拿来做高质量总结
 
-### 创建文档
-```
-创建一个新文档，标题是"周报模板"，写入本周工作总结
-```
+### 2. 获取完整结构或用于总结
 
-### 更新文档
-```
-更新文档内容为：https://alidocs.dingtalk.com/i/nodes/xxx
-# 新标题
-新内容
-```
+适用：
 
-### 追加内容
-```
-在这篇文档末尾追加一段：https://alidocs.dingtalk.com/i/nodes/xxx
-## 新增章节
-这是新增的内容
+- 用户要求“总结这篇文档”
+- 用户要求“列出结构”
+- 后续操作需要 `blockId`
+
+执行：
+
+```bash
+node /absolute/path/to/doc-enterprise.js blocks <docKey-or-url>
 ```
 
-### 查询结构
-```
-列出这篇文档的结构：https://alidocs.dingtalk.com/i/nodes/xxx
-```
+说明：
 
-## 多用户支持
+- 优先用 `blocks` 获取更完整的块结构
+- 做总结前，先读取 `blocks` 的结果，再基于结果总结
+- 删除或追加前，如果用户没有给出 `blockId`，先运行 `blocks`
 
-### 工作原理
+### 3. 覆写整篇文档
 
-```
-用户 A 发送消息 → 钉钉连接器 → OpenClaw
-                          ↓
-                   提取 sender_id
-                          ↓
-                   查询用户 unionId
-                          ↓
-                   作为 operatorId 调用 API
-                          ↓
-                   返回结果给用户 A
+适用：
+
+- 用户明确要求“更新整篇文档”
+- 用户给出了新的 Markdown 内容
+
+执行：
+
+```bash
+node /absolute/path/to/doc-enterprise.js update <docKey-or-url> <markdown>
 ```
 
-### 权限隔离
+说明：
 
-| 用户 | 可访问的文档 |
-|------|-------------|
-| 用户 A | A 有权限的文档 |
-| 用户 B | B 有权限的文档 |
-| 机器人 | 机器人账号有权限的文档 |
+- 这是整篇覆写，不是局部编辑
+- 若用户只是想在末尾补一段，不要用 `update`
 
-**每个用户只能操作自己有权限的文档**，不会越权访问。
+### 4. 追加文本到段落块
 
-### 用户身份获取
+适用：
 
-**优先级：**
-1. **钉钉连接器消息元数据** - `sender_id`（最准确）
-2. **通讯录 API 查询** - 通过手机号查询 unionId
-3. **环境变量默认值** - `DINGTALK_OPERATOR_ID`（备用）
+- 用户要求在某个已知段落块后追加文本
+- 已经拿到了目标 `blockId`
 
-## API 参考
+执行：
 
-### 支持的 API 端点
+```bash
+node /absolute/path/to/doc-enterprise.js append-text <docKey-or-url> <blockId> <text>
+```
 
-| 操作 | API 端点 | 方法 |
-|------|---------|------|
-| 覆写文档 | `/v1.0/doc/suites/documents/{docKey}/overwriteContent` | POST |
-| 查询块元素 | `/v1.0/doc/suites/documents/{dentryUuid}/blocks` | GET |
-| 插入块元素 | `/v1.0/doc/suites/documents/{dentryUuid}/blocks` | POST |
-| 更新块元素 | `/v1.0/doc/suites/documents/{dentryUuid}/blocks/{blockId}` | PUT |
-| 删除块元素 | `/v1.0/doc/suites/documents/{dentryUuid}/blocks/{blockId}` | DELETE |
-| 追加文本 | `/v1.0/doc/suites/documents/{dentryUuid}/paragraphs/{blockId}/text` | POST |
+说明：
 
-### 请求参数
+- 如果没有 `blockId`，先运行 `blocks`
+- 仅在目标块确实是段落块时使用
 
-| 参数 | 位置 | 说明 |
-|------|------|------|
-| `docKey` / `dentryUuid` | Path | 文档 ID |
-| `operatorId` | Query | 操作人 unionId（自动获取） |
-| `x-acs-dingtalk-access-token` | Header | 访问凭证（自动获取） |
-| `content` | Body | 文档内容（更新时） |
+### 5. 删除块元素
+
+适用：
+
+- 用户明确要求删除某一段或某个块
+- 已经拿到了目标 `blockId`
+
+执行：
+
+```bash
+node /absolute/path/to/doc-enterprise.js delete <docKey-or-url> <blockId>
+```
+
+说明：
+
+- 删除前先确认目标块，避免误删
+- 如果用户说“删除第 3 段”，先运行 `blocks` 找到对应 `blockId`
+
+## 工作流程
+
+1. 从用户消息中提取文档链接或 docKey。
+2. 判断是读取、总结、列结构、覆写、追加，还是删除。
+3. 需要 `blockId` 时，先运行 `blocks`。
+4. 读取概览用 `read`；做总结或定位块时优先用 `blocks`。
+5. 执行脚本后，把结果用自然语言返回给用户。
 
 ## 错误处理
 
-| 错误码 | 说明 | 解决方案 |
-|--------|------|----------|
-| `paramError` | 参数错误 | 检查文档 ID 格式 |
-| `forbidden.accessDenied` | 无权限 | 确认用户对文档有权限 |
-| `docNotExist` | 文档不存在 | 检查文档 ID 是否正确 |
-| `blockNotExist` | 块元素不存在 | 检查块 ID 是否正确 |
-| `operatorId invalid` | 操作人无效 | 检查用户身份获取 |
+若脚本报以下错误，按对应方式处理：
+
+- 缺少 `DINGTALK_CLIENTID` 或 `DINGTALK_CLIENTSECRET`：提示未配置钉钉应用凭证
+- 缺少 `operatorId`：提示配置 `DINGTALK_OPERATOR_ID`，或确认连接器是否传入 `OPENCLAW_SENDER_ID`
+- `forbidden.accessDenied`：提示当前用户对该文档无权限
+- `docNotExist`：提示文档不存在，检查链接或 docKey
+- `blockNotExist`：提示块不存在，先重新运行 `blocks` 核对
+- `paramError`：提示参数格式错误，优先检查链接与文档 ID
 
 ## 限制
 
-- 单次内容最大长度：50000 字符
-- 频率限制：100 次/分钟/文档
-- 块元素更新：目前仅支持段落类型
+- 当前脚本未实现创建文档，不要承诺或尝试 `create`
+- `read` 只适合概览，不足以替代完整正文提取
+- 追加和删除依赖 `blockId`
+- 覆写会直接替换整篇文档内容
 
-## 安全说明
+## 参考
 
-### 权限隔离
-
-- 每个用户只能访问自己有权限的文档
-- 不会越权访问其他用户的私有文档
-- 企业公开文档对所有用户可见
-
-### 审计日志
-
-所有操作都会记录：
-- 操作人（operatorId）
-- 操作时间
-- 操作类型
-- 目标文档
-
-### 凭证管理
-
-- ClientSecret 妥善保管，不要泄露
-- Access Token 自动获取和刷新
-- 建议使用 HTTPS 传输
-
----
-
-_最后更新：2026-04-09_
+- 背景说明与人工阅读材料：`README.md`
+- 实际执行脚本：`doc-enterprise.js`

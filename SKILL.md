@@ -1,6 +1,6 @@
 ---
 name: dingtalk-doc-enterprise
-description: 钉钉文档操作技能。触发：钉钉文档链接 (alidocs.dingtalk.com)、关键词（总结/读取/更新/删除文档）、或文档操作请求。支持 read/blocks/update/append-text/delete 命令。
+description: 钉钉文档操作技能。仅在消息明确包含 `alidocs.dingtalk.com`、`钉钉文档`、`钉钉知识库`、`alidocs`，或当前上下文已明确对象是钉钉文档时使用。支持 read/blocks/update/append-text/delete 命令，不支持 create。
 metadata:
   {
     "openclaw":
@@ -23,7 +23,7 @@ metadata:
 
 ### 🔑 触发关键词
 
-当消息包含以下**任一关键词**时，优先使用本 skill：
+只有在**已经确认对象是钉钉文档**时，同时消息包含以下**任一关键词**时，优先使用本 skill：
 
 | 类别 | 关键词 |
 |------|--------|
@@ -43,16 +43,17 @@ metadata:
 | 场景 | 示例 | 动作 |
 |------|------|------|
 | **钉钉文档链接** | `alidocs.dingtalk.com/i/nodes/xxx` | 自动识别，调用 `read` 或 `blocks` |
-| **关键词 + 链接** | "总结 https://alidocs.dingtalk.com/..." | 根据意图选择命令 |
-| **明确命令** | "总结这篇文档"、"读取这个链接" | 根据意图选择命令 |
-| **文档操作** | "更新文档"、"追加内容"、"删除某段" | 调用对应命令 |
-| **结构查询** | "列出结构"、"有哪些章节" | 调用 `blocks` |
+| **钉钉上下文 + 链接** | "总结 https://alidocs.dingtalk.com/..." | 根据意图选择命令 |
+| **明确命令** | "总结这篇文档"、"读取这个 alidocs 链接" | 根据意图选择命令 |
+| **已知上下文是钉钉文档** | 前文已给出 alidocs 链接，后续说"更新文档"、"删除某段" | 调用对应命令 |
+| **结构查询** | "列出结构"、"这个 alidocs 有哪些章节" | 调用 `blocks` |
 
 ### ❌ 不触发的场景
 
 - 创建新文档（脚本未实现 `create`）
-- 没有文档链接却要求修改文档
-- 没有 `blockId` 却要求追加/删除特定块
+- 没有文档链接、docKey、或明确钉钉文档上下文，却要求修改文档
+- 用户只说“总结文档”“更新这个链接”等泛化请求，但上下文无法确认对象是钉钉文档
+- 与钉钉无关的文档系统，例如本地 Markdown、飞书文档、语雀、Google Docs
 
 ---
 
@@ -171,6 +172,7 @@ node /absolute/path/to/doc-enterprise.js append-text <docKey-or-url> <blockId> <
 
 - 如果没有 `blockId`，先运行 `blocks`
 - 仅在目标块确实是段落块时使用
+- “没有 `blockId`” 不代表不触发本 skill，而是先查结构再执行追加
 
 ### 5. 删除块元素
 
@@ -189,11 +191,12 @@ node /absolute/path/to/doc-enterprise.js delete <docKey-or-url> <blockId>
 
 - 删除前先确认目标块，避免误删
 - 如果用户说“删除第 3 段”，先运行 `blocks` 找到对应 `blockId`
+- “没有 `blockId`” 不代表不触发本 skill，而是先查结构再执行删除
 
 ## 工作流程
 
 1. 从用户消息中提取文档链接或 docKey。
-2. 判断是读取、总结、列结构、覆写、追加，还是删除。
+2. 先确认对象确实是钉钉文档，再判断是读取、总结、列结构、覆写、追加，还是删除。
 3. 需要 `blockId` 时，先运行 `blocks`。
 4. 读取概览用 `read`；做总结或定位块时优先用 `blocks`。
 5. 执行脚本后，把结果用自然语言返回给用户。

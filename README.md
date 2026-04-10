@@ -11,6 +11,8 @@
 > 连接器的文档说["钉钉文档能力依赖 MCP（Model Context Protocol）提供底层 tool"](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector?tab=readme-ov-file#%E9%92%89%E9%92%89%E6%96%87%E6%A1%A3docs%E4%B8%8E-mcpdocs) ，这种方案全是权限问题。
 >
 > [于是有了这个玩具。](https://clawhub.ai/shyzhen/dingtalk-doc-enterprise)
+>
+> 可以使用`openclaw skills install dingtalk-doc-enterprise`命令安装，也可以自己下载放到skills目录下。
 
 ---
 

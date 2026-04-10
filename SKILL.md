@@ -1,6 +1,16 @@
 ---
 name: dingtalk-doc-enterprise
 description: 钉钉文档企业版（多用户支持）。通过钉钉企业 API 管理文档，自动从钉钉连接器获取当前用户身份。支持读取、创建、编辑、删除文档。Design by Ash。
+requires:
+  bins:
+    - node  # 需要 Node.js 运行环境
+env:
+  read:
+    - "DINGTALK_CLIENTID (必需，钉钉应用 ClientId，从 ~/.openclaw/.env 加载)"
+    - "DINGTALK_CLIENTSECRET (必需，钉钉应用 ClientSecret，从 ~/.openclaw/.env 加载)"
+    - "DINGTALK_OPERATOR_ID (可选，操作人 unionId，不设置则自动获取)"
+    - "OPENCLAW_SENDER_ID (可选，由 OpenClaw 自动注入)"
+    - "OPENCLAW_SENDER_NAME (可选，由 OpenClaw 自动注入)"
 ---
 
 # 钉钉文档企业版技能 (dingtalk-doc-enterprise)
@@ -43,10 +53,20 @@ description: 钉钉文档企业版（多用户支持）。通过钉钉企业 API
 
 ### 环境变量
 
+**配置方式：** 在 `~/.openclaw/.env` 文件中添加（OpenClaw 会自动加载）
+
+```bash
+# ~/.openclaw/.env
+DINGTALK_CLIENTID=dingxxxxxx
+DINGTALK_CLIENTSECRET=your_secret
+```
+
 | 变量 | 说明 | 必需 | 获取方式 |
 |------|------|------|---------|
 | `DINGTALK_CLIENTID` | 企业内部应用 ClientId | ✅ | 钉钉开放平台 → 应用详情 |
 | `DINGTALK_CLIENTSECRET` | 企业内部应用 ClientSecret | ✅ | 钉钉开放平台 → 应用详情 |
+
+**注意：** 不需要在技能代码中直接读取 `.env` 文件，OpenClaw 会在启动时自动加载 `~/.openclaw/.env` 到环境变量。
 
 ### OpenClaw 集成
 

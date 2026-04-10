@@ -2,7 +2,7 @@
 /**
  * 钉钉文档企业 API 工具
  *
- * 支持操作：读取、创建、更新、删除文档和块元素
+ * 支持操作：读取文档概览、查询块结构、插入块、覆写内容、删除块、追加段落文本
  *
  * 环境变量：
  *   DINGTALK_CLIENTID - 企业内部应用 ClientId
@@ -24,10 +24,6 @@ const userCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 分钟
 
 // ============ 工具函数 ============
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /**
  * 获取 Access Token
@@ -168,6 +164,21 @@ function extractDocId(input) {
   return input;
 }
 
+function truncateText(text, maxLength = 80) {
+  if (!text) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function blockPreview(block) {
+  if (block?.paragraph?.text) return truncateText(block.paragraph.text, 80);
+  if (Array.isArray(block?.paragraph?.contents)) {
+    const text = block.paragraph.contents.map(item => item?.text || '').join('').trim();
+    if (text) return truncateText(text, 80);
+  }
+  if (block?.heading?.text) return truncateText(block.heading.text, 80);
+  return '';
+}
+
 // ============ API 封装 ============
 
 async function queryBlocks(dentryUuid, operatorId, token) {
@@ -212,12 +223,14 @@ async function cmdRead(args) {
   const token = await getAccessToken();
   const result = await queryBlocks(docKey, operatorId, token);
 
-  console.log('\n=== 文档块列表 ===\n');
+  console.log('\n=== 文档概览 ===\n');
   if (result.blocks && result.blocks.length > 0) {
     result.blocks.forEach((block, index) => {
       console.log(`${index + 1}. [${block.blockType}] ${block.blockId}`);
-      if (block.paragraph?.text) console.log(`   内容：${block.paragraph.text.substring(0, 50)}...`);
+      const preview = blockPreview(block);
+      if (preview) console.log(`   预览：${preview}`);
     });
+    console.log('\n提示：如果要做总结、定位 blockId 或查看完整结构，请使用 blocks 命令。');
   } else {
     console.log('(空文档)');
   }
@@ -298,12 +311,16 @@ async function main() {
   node doc-enterprise.js <command> [args]
 
 命令:
-  read <docKey|url>           读取文档（列出块元素）
-  blocks <docKey|url>         查询块元素详情
+  read <docKey|url>           读取文档概览（块列表 + 预览）
+  blocks <docKey|url>         查询完整块结构（适合总结和定位 blockId）
   insert <docKey|url> <pos> <content>  插入块元素
   delete <docKey|url> <blockId>       删除块元素
   append-text <docKey|url> <blockId> <text>  追加文本到段落
-  update <docKey|url> <markdown>      更新文档内容
+  update <docKey|url> <markdown>      覆写整篇文档内容
+
+说明:
+  当前脚本未实现 create。
+  如需总结文档或查找 blockId，请优先使用 blocks。
 
 示例:
   node doc-enterprise.js read https://alidocs.dingtalk.com/i/nodes/xxx

@@ -10,27 +10,31 @@
 >
 > 连接器的文档说["钉钉文档能力依赖 MCP（Model Context Protocol）提供底层 tool"](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector?tab=readme-ov-file#%E9%92%89%E9%92%89%E6%96%87%E6%A1%A3docs%E4%B8%8E-mcpdocs) ，这种方案全是权限问题。
 >
-> 于是有了这个玩具。
+> [于是有了这个玩具。](https://clawhub.ai/shyzhen/dingtalk-doc-enterprise)
 
 ---
 
 ## 🚀 快速开始
 
-### 1. 环境变量配置
+### 1. 配置钉钉凭证
 
-在 OpenClaw Gateway 环境中添加以下环境变量：
+**推荐方式：编辑 `~/.openclaw/.env` 文件**
 
-```powershell
-# 钉钉企业内部应用凭证
-$env:DINGTALK_CLIENTID="your_client_id"
-$env:DINGTALK_CLIENTSECRET="your_client_secret"
+OpenClaw 会在启动时自动加载此文件中的环境变量，无需手动设置。
+
+```bash
+# ~/.openclaw/.env
+DINGTALK_CLIENTID=dingxxxxxx
+DINGTALK_CLIENTSECRET=your_secret
 ```
 
-**获取方式：**
+**获取凭证：**
 1. 登录 [钉钉开放平台](https://open.dingtalk.com/)
 2. 进入「应用开发」→「企业内部开发」
 3. 创建或选择已有应用
-4. 在「应用详情」页面获取 ClientId 和 ClientSecret
+4. 在「应用详情」页面获取 `AppKey` (ClientId) 和 `AppSecret` (ClientSecret)
+
+**注意：** 修改 `.env` 文件后需要重启 OpenClaw Gateway 才能生效。
 
 ---
 
@@ -50,6 +54,18 @@ $env:DINGTALK_CLIENTSECRET="your_client_secret"
 3. 搜索上述权限码并申请
 4. 等待管理员审批通过
 
+### 3. 验证配置
+
+重启 OpenClaw Gateway 后，可以通过以下方式验证配置是否生效：
+
+```bash
+# 检查环境变量是否加载
+openclaw env | Select-String DINGTALK
+
+# 或查看 Gateway 日志
+openclaw logs --grep DINGTALK
+```
+
 ---
 
 ## ✨ 核心特性
@@ -57,7 +73,7 @@ $env:DINGTALK_CLIENTSECRET="your_client_secret"
 - ✅ **自动身份识别** - 从钉钉连接器消息自动获取发送者身份
 - ✅ **多用户支持** - 企业内所有用户均可使用
 - ✅ **权限隔离** - 每个用户只能操作自己有权限的文档
-- ✅ **完整 CRUD** - 支持读取、创建(假的，不能创建)、编辑、删除文档
+- ✅ **完整 CRUD** - 支持读取、创建(截至目前钉钉文档api还不支持创建)、编辑、删除文档
 
 ---
 

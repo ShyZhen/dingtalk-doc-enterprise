@@ -11,8 +11,6 @@
 > 连接器的文档说["钉钉文档能力依赖 MCP（Model Context Protocol）提供底层 tool"](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector?tab=readme-ov-file#%E9%92%89%E9%92%89%E6%96%87%E6%A1%A3docs%E4%B8%8E-mcpdocs) ，这种方案全是权限问题。
 >
 > [于是有了这个玩具。](https://clawhub.ai/shyzhen/dingtalk-doc-enterprise)
->
-> 可以使用`openclaw skills install dingtalk-doc-enterprise`命令安装，也可以自己下载放到skills目录下。
 
 ---
 
@@ -75,7 +73,7 @@ openclaw logs --grep DINGTALK
 - ✅ **自动身份识别** - 从钉钉连接器消息自动获取发送者身份
 - ✅ **多用户支持** - 企业内所有用户均可使用
 - ✅ **权限隔离** - 每个用户只能操作自己有权限的文档
-- ✅ **完整 CRUD** - 支持读取、创建(截至目前钉钉文档api还不支持创建)、编辑、删除文档
+- ✅ **文档读取与修改** - 支持读取概览、查询块结构、覆写整篇内容、追加文本、删除块元素
 
 ---
 
@@ -99,9 +97,9 @@ https://alidocs.dingtalk.com/i/nodes/xxx
 | 操作 | 指令示例 |
 |------|---------|
 | 读取文档 | `读取钉钉文档 <链接>` |
-| 创建文档 | `创建钉钉文档 <标题> [内容]` |
+| 总结文档 | `总结这篇文档：<链接>` |
 | 更新文档 | `更新文档 <链接> 内容为...` |
-| 追加内容 | `在文档末尾追加：<链接> 内容...` |
+| 追加内容 | `在文档指定段落后追加：<链接> 内容...` |
 | 删除块元素 | `删除文档第 X 段：<链接>` |
 | 查询结构 | `列出文档结构：<链接>` |
 
@@ -133,6 +131,9 @@ OpenClaw 提取 sender_id
 - 私有文档需要单独授权
 
 ### 限制
+- 当前版本**不支持创建新文档**
+- `read` 更适合快速概览；如果要总结文档或定位块，请先使用 `blocks`
+- 追加和删除操作依赖 `blockId`，通常需要先查询结构
 - 单次内容最大长度：50000 字符
 - 频率限制：100 次/分钟/文档
 - 块元素更新：目前仅支持段落类型
@@ -147,8 +148,26 @@ OpenClaw 提取 sender_id
 | `docNotExist` | 文档不存在 | 检查文档 ID 是否正确 |
 | `operatorId invalid` | 用户身份无效 | 检查钉钉连接器配置 |
 | `paramError` | 参数错误 | 检查文档链接格式 |
+| 缺少 `DINGTALK_CLIENTID` / `DINGTALK_CLIENTSECRET` | 未配置应用凭证 | 在 `~/.openclaw/.env` 中补齐并重启 Gateway |
 
 ---
+
+## 📚 CLI 参考
+
+脚本文件为同目录下的 `doc-enterprise.js`，常用命令如下：
+
+```bash
+node doc-enterprise.js read <docKey|url>
+node doc-enterprise.js blocks <docKey|url>
+node doc-enterprise.js update <docKey|url> "<markdown>"
+node doc-enterprise.js append-text <docKey|url> <blockId> "<text>"
+node doc-enterprise.js delete <docKey|url> <blockId>
+```
+
+- `read`：输出块列表和文本预览，适合快速查看
+- `blocks`：输出完整块结构，适合总结文档或定位 `blockId`
+- `update`：整篇覆写 Markdown 内容
+- `append-text` / `delete`：需要已知 `blockId`
 
 ## 📚 API 参考
 
